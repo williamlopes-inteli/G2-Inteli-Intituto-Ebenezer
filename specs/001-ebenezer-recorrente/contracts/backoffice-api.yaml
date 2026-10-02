@@ -1,0 +1,148 @@
+openapi: 3.0.3
+info:
+  title: Ebenézer Recorrente - Back-office & Conciliação API
+  version: 1.0.0
+  description: API administrativa e financeira com controle de acesso baseado em papéis (RBAC) e auditoria imutável.
+paths:
+  /api/v1/admin/auth/login:
+    post:
+      summary: Autenticação de operador com MFA
+      operationId: adminLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, mfaCode]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                mfaCode:
+                  type: string
+      responses:
+        '200':
+          description: Autenticado com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  role:
+                    type: string
+                    enum: [ADMIN, FINANCE, COMMUNICATION, APPROVER, AUDITOR_READONLY]
+
+  /api/v1/admin/dashboard/summary:
+    get:
+      summary: Retorna resumo financeiro segregado (intenções, confirmadas, liquidadas, exceções)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Resumo consolidado do período
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalIntentsCount:
+                    type: integer
+                  totalIntentsAmount:
+                    type: number
+                  totalPaidCount:
+                    type: integer
+                  totalPaidAmount:
+                    type: number
+                  totalSettledAmount:
+                    type: number
+                  totalPendingExceptionsCount:
+                    type: integer
+
+  /api/v1/admin/exceptions:
+    get:
+      summary: Lista itens da Caixa de Exceções financeiras (pagamentos tardios, divergências, órfãos)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lista de itens em quarentena / revisão
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExceptionItem'
+
+  /api/v1/admin/reconciliation/{itemId}/resolve:
+    post:
+      summary: Resolve manualmente um item de divergência financeira com justificativa e auditoria
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [targetStatus, justification]
+              properties:
+                targetStatus:
+                  type: string
+                  enum: [SETTLED, UNDER_REVIEW]
+                justification:
+                  type: string
+                  minLength: 10
+      responses:
+        '200':
+          description: Divergência resolvida e ação auditada
+
+  /api/v1/admin/audit-logs:
+    get:
+      summary: Consulta trilha cronológica imutável de auditoria de segurança
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lista paginada de eventos de auditoria
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ExceptionItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [LATE_PAYMENT, DIVERGENT_AMOUNT, ORPHAN_PIX, EXPIRED_CONFIRMATION]
+        intentId:
+          type: string
+          nullable: true
+        expectedAmount:
+          type: number
+        actualAmount:
+          type: number
+        discrepancyReason:
+          type: string
+        createdAt:
+          type: string
+          format: date-time

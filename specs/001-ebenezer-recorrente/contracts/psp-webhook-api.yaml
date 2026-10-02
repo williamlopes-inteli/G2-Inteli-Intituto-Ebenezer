@@ -1,0 +1,62 @@
+openapi: 3.0.3
+info:
+  title: Ebenézer Recorrente - PSP Webhook Ingestion API
+  version: 1.0.0
+  description: Endpoint de ingestão de webhooks e notificações assíncronas do parceiro de pagamentos (PSP).
+paths:
+  /api/v1/webhooks/psp/{pspName}:
+    post:
+      summary: Recebe e persiste duravelmente notificações de eventos de cobrança e pagamento
+      description: |
+        Valida a autenticidade (assinatura/token) do parceiro indicado no path (`mock`, `asaas`, `efi`),
+        armazena o payload bruto em `psp_events` com chave única e devolve HTTP 200/204 antes de despachar o
+        processamento assíncrono para garantir tolerância a falhas.
+      parameters:
+        - name: pspName
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [mock, asaas, efi]
+        - name: asaas-access-token
+          in: header
+          required: false
+          schema:
+            type: string
+        - name: x-signature
+          in: header
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Evento recebido e persistido com sucesso (ou duplicata segura identificada)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+                    example: true
+                  eventId:
+                    type: string
+                    example: "evt_123456"
+        '401':
+          description: Assinatura ou token de webhook inválido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "UNAUTHORIZED_WEBHOOK_SIGNATURE"
+        '500':
+          description: Falha temporária na persistência durável (PSP deve tentar novamente)

@@ -1,0 +1,185 @@
+openapi: 3.0.3
+info:
+  title: Ebenézer Recorrente - Donations Checkout API
+  version: 1.0.0
+  description: API pública para captura de doações pontuais via Pix, consulta de status e campanhas do Instituto Ebenézer.
+paths:
+  /api/v1/campaigns:
+    get:
+      summary: Lista campanhas ativas para doação
+      operationId: listCampaigns
+      responses:
+        '200':
+          description: Lista de campanhas ativas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Campaign'
+
+  /api/v1/donations/checkout:
+    post:
+      summary: Cria uma intenção de doação e gera a cobrança Pix dinâmica no PSP
+      operationId: createDonationCheckout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDonationRequest'
+      responses:
+        '201':
+          description: Cobrança Pix gerada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DonationCheckoutResponse'
+        '400':
+          description: Dados de requisição inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Provedor de pagamentos temporariamente indisponível
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/donations/{intentId}/status:
+    get:
+      summary: Consulta o status atual da intenção de doação (usado para polling no frontend)
+      operationId: getDonationStatus
+      parameters:
+        - name: intentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Status atual da doação
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DonationStatusResponse'
+        '404':
+          description: Intenção não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    Campaign:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "acolhimento-infantil"
+        name:
+          type: string
+          example: "Acolhimento e Educação Infantil"
+        description:
+          type: string
+          example: "Suporte nutricional e pedagógico para crianças em vulnerabilidade."
+        suggestedAmounts:
+          type: array
+          items:
+            type: number
+          example: [25, 50, 100, 200]
+
+    CreateDonationRequest:
+      type: object
+      required:
+        - campaignId
+        - amount
+        - donorName
+        - donorEmail
+      properties:
+        campaignId:
+          type: string
+          example: "acolhimento-infantil"
+        amount:
+          type: number
+          minimum: 5.00
+          example: 50.00
+        donorName:
+          type: string
+          example: "Maria da Silva"
+        donorEmail:
+          type: string
+          format: email
+          example: "maria.silva@example.com"
+        donorPhone:
+          type: string
+          example: "11987654321"
+        taxIdCpf:
+          type: string
+          description: "Opcional (LGPD): informado apenas se o doador solicitar comprovante nominal formal"
+          example: "123.456.789-00"
+        marketingOptIn:
+          type: boolean
+          default: false
+          description: "Consentimento explícito e desmarcado por padrão"
+
+    DonationCheckoutResponse:
+      type: object
+      properties:
+        intentId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [AWAITING_PAYMENT, PAID, EXPIRED]
+          example: "AWAITING_PAYMENT"
+        amount:
+          type: number
+          example: 50.00
+        copyPasteCode:
+          type: string
+          example: "00020126580014br.gov.bcb.pix0136123e4567-e89b-12d3-a456-426614174000520400005303986540550.005802BR5917INSTITUTO EBENEZER6009SAO PAULO62070503***6304ABCD"
+        qrCodeUrl:
+          type: string
+          nullable: true
+          example: "https://api.ebenezer.org.br/qr/123.png"
+        expiresAt:
+          type: string
+          format: date-time
+          example: "2026-10-01T22:30:00Z"
+        beneficiary:
+          type: string
+          example: "Instituto Ebenézer de Ação Social"
+
+    DonationStatusResponse:
+      type: object
+      properties:
+        intentId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [CREATED, AWAITING_PAYMENT, PAID, EXPIRED, CANCELLED, LATE_PAYMENT_REVIEW]
+          example: "PAID"
+        paidAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-10-01T21:55:00Z"
+        receiptSent:
+          type: boolean
+          example: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          example: "INVALID_AMOUNT"
+        message:
+          type: string
+          example: "O valor mínimo de doação é R$ 5,00."

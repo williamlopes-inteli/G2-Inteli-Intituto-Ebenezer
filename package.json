@@ -1,0 +1,26 @@
+{
+  "name": "ebenezer-recorrente",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Plataforma de doações pontuais e recorrentes via Pix com conciliação financeira do Instituto Ebenézer",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev:backend": "npm --workspace=backend run dev",
+    "dev:frontend": "npm --workspace=frontend run dev",
+    "build": "npm --workspace=backend run build && npm --workspace=frontend run build",
+    "test": "npm --workspace=backend test",
+    "test:financial-matrix": "npm --workspace=backend run test:financial-matrix",
+    "simulate": "npm --workspace=backend run simulate"
+  },
+  "keywords": [
+    "pix",
+    "donations",
+    "financial-reconciliation",
+    "ebenezer"
+  ],
+  "author": "Instituto Ebenézer",
+  "license": "UNLICENSED"
+}
