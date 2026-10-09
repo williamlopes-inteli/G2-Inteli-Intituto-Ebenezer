@@ -1,11 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
-import { ShieldCheck, Award, FileCheck2, Info, RefreshCw, HeartHandshake, Compass } from 'lucide-react';
+import { ShieldCheck, Award, FileCheck2, Info, RefreshCw, HeartHandshake, Compass, FileDown, CheckCircle2 } from 'lucide-react';
+import { generateTransparencyPdf } from './generateTransparencyPdf';
 
 export const TransparencyPage: React.FC = () => {
   const [indicators, setIndicators] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [generatingPdf, setGeneratingPdf] = useState<boolean>(false);
+  const [pdfSuccess, setPdfSuccess] = useState<boolean>(false);
+
+  const handleDownloadPdf = async () => {
+    try {
+      setGeneratingPdf(true);
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      generateTransparencyPdf(indicators);
+      setPdfSuccess(true);
+      setTimeout(() => setPdfSuccess(false), 4500);
+    } catch (err) {
+      console.error('Erro ao gerar relatório em PDF:', err);
+      alert('Não foi possível gerar o relatório em PDF. Tente novamente.');
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
 
   const loadIndicators = async () => {
     try {
@@ -41,6 +59,28 @@ export const TransparencyPage: React.FC = () => {
             Nossos números são homologados através do <strong>Cofre de Indicadores</strong> com dupla aprovação
             (Maker-Checker) e auditoria de fontes reais.
           </p>
+
+          <div className="flex flex-wrap items-center gap-3 pt-3">
+            <button
+              onClick={handleDownloadPdf}
+              disabled={generatingPdf || loading}
+              className="inline-flex items-center gap-2.5 px-6 py-3.5 bg-[#006400] hover:bg-[#005000] active:scale-[0.98] text-white rounded-[300px] font-bold text-sm shadow-xl hover:shadow-2xl transition-all border border-[#00FB00]/30 disabled:opacity-50 cursor-pointer"
+            >
+              {generatingPdf ? (
+                <RefreshCw className="w-4 h-4 animate-spin text-[#00FB00]" />
+              ) : (
+                <FileDown className="w-4 h-4 text-[#00FB00]" />
+              )}
+              <span>{generatingPdf ? 'Gerando Relatório...' : 'Extrair Relatório em PDF'}</span>
+            </button>
+
+            {pdfSuccess && (
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#00FB00]/20 text-[#00FB00] border border-[#00FB00]/40 rounded-full text-xs font-bold animate-pulse">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Relatório PDF baixado com sucesso!</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -59,7 +99,7 @@ export const TransparencyPage: React.FC = () => {
 
       {/* Grid de Indicadores de Impacto */}
       <div>
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h2 className="text-xl font-black text-[#101625] flex items-center gap-2">
               <Award className="w-6 h-6 text-[#006400]" />
@@ -69,13 +109,24 @@ export const TransparencyPage: React.FC = () => {
               Valores acumulados e verificados pelo conselho fiscal e coordenação pedagógica.
             </p>
           </div>
-          <button
-            onClick={loadIndicators}
-            className="flex items-center gap-1.5 text-xs font-bold text-[#101625] bg-[#EFF3F8] hover:bg-slate-200 border border-slate-200 py-2 px-4 rounded-[300px] shadow-sm transition-all"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span>Atualizar</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDownloadPdf}
+              disabled={generatingPdf || loading}
+              className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#006400] hover:bg-[#005000] py-2 px-4 rounded-[300px] shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+              title="Baixar relatório em PDF"
+            >
+              <FileDown className="w-3.5 h-3.5 text-[#00FB00]" />
+              <span>{generatingPdf ? 'Gerando...' : 'Baixar PDF'}</span>
+            </button>
+            <button
+              onClick={loadIndicators}
+              className="flex items-center gap-1.5 text-xs font-bold text-[#101625] bg-[#EFF3F8] hover:bg-slate-200 border border-slate-200 py-2 px-4 rounded-[300px] shadow-sm transition-all"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <span>Atualizar</span>
+            </button>
+          </div>
         </div>
 
         {loading && (
